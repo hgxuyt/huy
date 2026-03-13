@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}Главная - Социальная сеть{% endblock %}
+
+{% block content %}
+<div class="row" style="margin-top: 3%;">
+    <!-- Левая колонка: форма создания поста -->
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Создать пост</h5>
+                {% if current_user.is_authenticated %}
+                    <form action="{{ url_for('create_post') }}" method="post">
+                        <div class="mb-3">
+                            <textarea class="form-control" name="content" rows="3" 
+                                      placeholder="Что у вас нового?" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-paper-plane"></i> Опубликовать
+                        </button>
+                    </form>
+                {% else %}
+                    <p class="text-muted">
+                        <a href="{{ url_for('login') }}">Войдите</a>, чтобы создать пост
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+        
+        
+        
+        <!-- Статистика -->
+        
+    </div>
+    
+    <!-- Правая колонка: лента постов -->
+    <div class="col-md-8">
+<!-- Вкладки фильтрации -->
+{% if current_user.is_authenticated %}
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+        <a class="nav-link {% if filter_type == 'all' %}active{% endif %}" 
+           href="{{ url_for('index', filter='all') }}">
+            <i class="fas fa-globe me-1"></i>Все посты
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if filter_type == 'following' %}active{% endif %}" 
+           href="{{ url_for('index', filter='following') }}">
+            <i class="fas fa-users me-1"></i>Мои подписки
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if filter_type == 'popular' %}active{% endif %}" 
+           href="{{ url_for('index', filter='popular') }}">
+            <i class="fas fa-fire me-1"></i>Популярное
+        </a>
+    </li>
+</ul>
+{% endif %}
+        
+        
+        
+        {% if posts.items %}
+            {% for post in posts.items %}
+                <div class="card post-card mb-3" id="post-{{ post.id }}">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <img src="{% if post.author.avatar != 'default.jpg' %}{{ url_for('static', filename='uploads/' + post.author.avatar) }}{% else %}https://ui-avatars.com/api/?name={{ post.author.username }}&background=0D6EFD&color=fff&size=40{% endif %}" 
+                                 class="avatar me-2" 
+                                 alt="Avatar"
+                                 style="width: 40px; height: 40px; object-fit: cover;">
+                            <div>
+                                <a href="{{ url_for('profile', username=post.author.username) }}" 
+                                   class="text-decoration-none fw-bold">
+                                    {{ post.author.username }}
+                                </a>
+                                <small class="text-muted d-block">
+                                    {{ post.timestamp.strftime('%d.%m.%Y %H:%M') }}
+                                </small>
+                            </div>
+                        </div>
+                        
+                        <p class="card-text">{{ post.content }}</p>
+                        
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <div>
+                                <span class="like-btn {% if current_user.is_authenticated and post.likes|selectattr('user_id', 'equalto', current_user.id)|list %}liked{% endif %}" 
+                                      data-post-id="{{ post.id }}">
+                                    <i class="fas fa-heart"></i>
+                                    <span class="like-count">{{ post.likes|length }}</span>
+                                </span>
+                                <span class="ms-3 text-muted">
+                                    <i class="fas fa-comment"></i> {{ post.comments|length }}
+                                </span>
+                            </div>
+                            
+                            {% if current_user.is_authenticated and current_user.id == post.author.id %}
+                                <small class="text-muted">Ваш пост</small>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Форма комментария -->
+                        {% if current_user.is_authenticated %}
+                            <form action="{{ url_for('add_comment', post_id=post.id) }}" 
+                                  method="post" class="mt-3">
+                                <div class="input-group">
+                                    <input type="text" class="form-control form-control-sm" 
+                                           name="content" placeholder="Написать комментарий..." required>
+                                    <button class="btn btn-sm btn-outline-primary" type="submit">
+                                        <i class="fas fa-paper-plane"></i>
+                                    </button>
+                                </div>
+                            </form>
+                        {% endif %}
+                        
+                        <!-- Комментарии -->
+                        {% if post.comments %}
+                            <div class="mt-3">
+                                <hr>
+                                <h6 class="text-muted">Комментарии:</h6>
+                                {% for comment in post.comments|sort(attribute='timestamp', reverse=True) %}
+                                    <div class="d-flex mt-2">
+                                        <img src="{% if comment.author.avatar != 'default.jpg' %}{{ url_for('static', filename='uploads/' + comment.author.avatar) }}{% else %}https://ui-avatars.com/api/?name={{ comment.author.username }}&background=6c757d&color=fff&size=30{% endif %}" 
+                                             class="avatar me-2" 
+                                             alt="Avatar"
+                                             style="width: 30px; height: 30px; object-fit: cover;">
+                                        <div class="bg-light p-2 rounded flex-grow-1">
+                                            <div class="d-flex justify-content-between">
+                                                <strong>{{ comment.author.username }}</strong>
+                                                <small class="text-muted">
+                                                    {{ comment.timestamp.strftime('%H:%M %d.%m.%Y') }}
+                                                </small>
+                                            </div>
+                                            <p class="mb-0 small">{{ comment.content }}</p>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="alert alert-info text-center">
+                <i class="fas fa-newspaper me-2"></i>
+                {% if filter_type == 'following' %}
+                    Пока нет постов от пользователей, на которых вы подписаны.
+                    <a href="{{ url_for('index', filter='all') }}">Посмотреть все посты</a>
+                {% else %}
+                    Пока нет постов. 
+                    {% if current_user.is_authenticated %}
+                        Создайте первый пост!
+                    {% else %}
+                        <a href="{{ url_for('login') }}">Войдите</a>, чтобы создавать посты.
+                    {% endif %}
+                {% endif %}
+            </div>
+        {% endif %}
+        
+        <!-- Пагинация -->
+        {% if posts.pages > 1 %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if posts.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('index', page=posts.prev_num, filter=filter_type) }}">←</a>
+                    </li>
+                {% endif %}
+                
+                {% for page_num in posts.iter_pages() %}
+                    {% if page_num %}
+                        <li class="page-item {% if page_num == posts.page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('index', page=page_num, filter=filter_type) }}">{{ page_num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if posts.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('index', page=posts.next_num, filter=filter_type) }}">→</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+
+<script>
+// AJAX отправка комментариев
+$(document).ready(function() {
+    $(document).on('click', '.comment-submit', function() {
+        const form = $(this).closest('.comment-form');
+        const postId = form.data('post-id');
+        const input = form.find('.comment-input');
+        const content = input.val().trim();
+        
+        if (!content) {
+            showNotification('Комментарий не может быть пустым', 'warning');
+            return;
+        }
+        
+        const btn = $(this);
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+        
+        $.ajax({
+            url: `/post/${postId}/comment`,
+            method: 'POST',
+            data: { content: content },
+            success: function() {
+                input.val('');
+                showNotification('💬 Комментарий добавлен', 'success');
+                
+                // Перезагружаем страницу, чтобы показать комментарий
+                setTimeout(() => location.reload(), 1000);
+            },
+            error: function() {
+                showNotification('Ошибка при добавлении комментария', 'danger');
+            },
+            complete: function() {
+                btn.prop('disabled', false).html('<i class="fas fa-paper-plane"></i>');
+            }
+        });
+    });
+    
+    // Отправка по Enter
+    $(document).on('keypress', '.comment-input', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            $(this).closest('.comment-form').find('.comment-submit').click();
+        }
+    });
+});
+</script>
+{% endblock %}

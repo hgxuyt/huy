@@ -1,0 +1,710 @@
+{% extends "base.html" %}
+
+{% block title %}Редактирование профиля - {{ current_user.username }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center" style="margin-top: 3%;">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="fas fa-user-edit me-2"></i>Редактирование профиля</h4>
+            </div>
+            <div class="card-body">
+                <!-- Форма редактирования -->
+<form method="post" enctype="multipart/form-data" id="editProfileForm">
+    <!-- Текущий аватар -->
+    <div class="text-center mb-4">
+        <div class="position-relative d-inline-block">
+            <img src="{% if current_user.avatar != 'default.jpg' %}{{ url_for('static', filename='uploads/' + current_user.avatar) }}{% else %}https://ui-avatars.com/api/?name={{ current_user.username }}&background=0D6EFD&color=fff&size=150{% endif %}" 
+                 class="rounded-circle border" 
+                 style="width: 150px; height: 150px; object-fit: cover;"
+                 id="avatarPreview">
+            <label for="avatarInput" class="position-absolute bottom-0 end-0 btn btn-sm btn-primary rounded-circle" style="transform: translate(0, -10px); height: 30%;">
+                <i class="fas fa-camera"></i>
+            </label>
+        </div>
+        <input type="file" 
+               class="d-none" 
+               id="avatarInput" 
+               name="avatar" 
+               accept="image/jpeg,image/png,image/gif"
+               onchange="previewAvatar(this)">
+        <div class="mt-2">
+            <small class="text-muted">Нажмите на иконку камеры, чтобы изменить аватар</small>
+        </div>
+    </div>
+    
+    <!-- Статус для уведомлений -->
+    <div id="emailStatus" class="alert" style="display: none;"></div>
+    
+    <!-- Поля формы -->
+    <div class="mb-3">
+        <label for="username" class="form-label">Имя пользователя</label>
+        <input type="text" 
+               class="form-control" 
+               id="username" 
+               name="username" 
+               value="{{ current_user.username }}"
+               required
+               minlength="3"
+               maxlength="80">
+        <div class="form-text">От 3 до 80 символов</div>
+    </div>
+    
+    <!-- Email с кнопкой смены -->
+    <div class="mb-3">
+        <label class="form-label">Эл. почта</label>
+        <div class="input-group">
+            <input type="email" 
+                   class="form-control" 
+                   id="email" 
+                   name="email" 
+                   value="{{ current_user.email }}"
+                   readonly
+                   disabled>
+            <button type="button" class="btn btn-outline-primary" onclick="showEmailChangeForm()" id="changeEmailBtn">
+                <i class="fas fa-edit me-2"></i>Сменить эл. почту
+            </button>
+        </div>
+    </div>
+    
+<div id="emailChangeForm" class="card card-body bg-light mb-3" style="display: none;">
+    <h6 class="mb-3"><i class="fas fa-envelope me-2"></i>Смена эл. почты</h6>
+    
+    <!-- Шаг 1: Ввод нового email -->
+    <div id="emailStep1">
+        <div class="mb-3">
+            <label for="newEmail" class="form-label">Новая эл. почта</label>
+            <input type="email" class="form-control" id="newEmail" placeholder="Введите новую эл. почту">
+        </div>
+        <button type="button" class="btn btn-primary" onclick="sendEmailChangeCode()">
+            <i class="fas fa-paper-plane me-2"></i>Отправить код
+        </button>
+    </div>
+    
+    <!-- Шаг 2: Ввод кода (скрыт по умолчанию) -->
+    <div id="emailStep2" style="display: none;">
+        <p class="text-muted mb-3">
+            <i class="fas fa-info-circle me-2"></i>
+            <!-- ИЗМЕНЕНО: показываем старую почту, а не новую -->
+            Код подтверждения отправлен на <strong>{{ current_user.email }}</strong>
+        </p>
+        
+        <!-- Добавляем информацию о новой почте для ясности -->
+        <p class="small text-muted mb-3">
+            Новая почта: <span id="newEmailDisplay" class="fw-bold"></span>
+        </p>
+        
+        <div class="mb-3">
+            <label for="emailCode" class="form-label">Код подтверждения</label>
+            <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-qrcode"></i></span>
+                <input type="text" 
+                       class="form-control" 
+                       id="emailCode" 
+                       placeholder="Введите 6-значный код"
+                       maxlength="6"
+                       pattern="[0-9]{6}"
+                       inputmode="numeric">
+            </div>
+        </div>
+        
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-success flex-grow-1" onclick="verifyEmailChange()">
+                <i class="fas fa-check me-2"></i>Подтвердить
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="cancelEmailChange()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="mt-2 text-center">
+            <small>
+                <a href="#" onclick="sendEmailChangeCode(); return false;">Отправить код повторно</a>
+            </small>
+        </div>
+    </div>
+    
+    <!-- Таймер для email -->
+    <div id="emailTimer" class="mt-2 text-center small text-muted" style="display: none;"></div>
+</div>
+    
+    <div class="mb-3">
+        <label for="bio" class="form-label">О себе</label>
+        <textarea class="form-control" 
+                  id="bio" 
+                  name="bio" 
+                  rows="4"
+                  placeholder="Расскажите немного о себе...">{{ current_user.bio or '' }}</textarea>
+        <div class="form-text">Максимум 500 символов</div>
+    </div>
+    
+    
+    <!-- Дата регистрации -->
+    <div class="mb-3">
+        <small class="text-muted">
+            <i class="fas fa-calendar-alt me-1"></i>
+            Зарегистрирован: {{ current_user.created_at.strftime('%d.%m.%Y') }}
+        </small>
+    </div>
+    
+    <!-- Кнопки сохранения -->
+    <div class="d-flex justify-content-between">
+        <a href="{{ url_for('profile', username=current_user.username) }}" class="btn btn-secondary">
+            <i class="fas fa-times me-2"></i>Отмена
+        </a>
+        <button type="submit" class="btn btn-primary" id="submitBtn">
+            <i class="fas fa-save me-2"></i>Сохранить изменения
+        </button>
+    </div>
+</form>
+            </div>
+        </div>
+        
+        <!-- Карточка смены пароля -->
+        <!-- Карточка смены пароля -->
+<div class="card mt-4">
+    <div class="card-header bg-warning text-dark">
+        <h5 class="mb-0"><i class="fas fa-key me-2"></i>Смена пароля</h5>
+    </div>
+    <div class="card-body">
+        <!-- Статус отправки -->
+        <div id="codeStatus" class="alert" style="display: none;"></div>
+        
+        <!-- Шаг 1: Запрос кода -->
+        <div id="step1">
+            <p class="text-muted mb-3">
+                <i class="fas fa-info-circle me-2"></i>
+                Для смены пароля мы отправим код подтверждения на ваш email: 
+                <strong>{{ current_user.email }}</strong>
+            </p>
+            
+            <button type="button" class="btn btn-warning" id="sendCodeBtn" onclick="requestResetCode()">
+                <i class="fas fa-paper-plane me-2"></i>Отправить код на почту
+            </button>
+        </div>
+        
+        <!-- Шаг 2: Ввод кода и нового пароля (скрыт по умолчанию) -->
+        <div id="step2" style="display: none;">
+            <div class="mb-3">
+                <label for="resetCode" class="form-label">Код подтверждения</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-qrcode"></i></span>
+                    <input type="text" 
+                           class="form-control" 
+                           id="resetCode" 
+                           placeholder="Введите 6-значный код"
+                           maxlength="6"
+                           pattern="[0-9]{6}"
+                           inputmode="numeric">
+                    <button class="btn btn-outline-secondary" type="button" onclick="requestResetCode()">
+                        <i class="fas fa-redo-alt"></i>
+                    </button>
+                </div>
+                <div class="form-text">Код отправлен на {{ current_user.email }}</div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="newPassword" class="form-label">Новый пароль</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                    <input type="password" 
+                           class="form-control" 
+                           id="newPassword" 
+                           placeholder="Минимум 6 символов"
+                           minlength="6">
+                    <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('newPassword')">
+                        <i class="fas fa-eye" id="toggleNewPassword"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="confirmNewPassword" class="form-label">Подтвердите пароль</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                    <input type="password" 
+                           class="form-control" 
+                           id="confirmNewPassword" 
+                           placeholder="Введите пароль еще раз"
+                           minlength="6">
+                    <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('confirmNewPassword')">
+                        <i class="fas fa-eye" id="toggleConfirmNewPassword"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Индикатор силы пароля -->
+            <div class="mb-3">
+                <div class="progress" style="height: 5px;">
+                    <div id="passwordStrength" class="progress-bar" role="progressbar" style="width: 0%;"></div>
+                </div>
+                <small id="passwordStrengthText" class="text-muted"></small>
+            </div>
+            
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-success flex-grow-1" onclick="changePasswordWithCode()">
+                    <i class="fas fa-check me-2"></i>Сменить пароль
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="cancelPasswordChange()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Таймер для повторной отправки -->
+        <div id="timer" class="mt-2 text-center small text-muted" style="display: none;"></div>
+    </div>
+</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Переменные для таймера
+let timerInterval;
+let timeLeft = 900; // 15 минут в секундах
+
+// Функция для показа/скрытия пароля
+function togglePassword(inputId) {
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(`toggle${inputId.charAt(0).toUpperCase() + inputId.slice(1)}`);
+    
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+// Запрос кода подтверждения
+async function requestResetCode() {
+    const sendBtn = document.getElementById('sendCodeBtn');
+    const statusDiv = document.getElementById('codeStatus');
+    
+    // Блокируем кнопку
+    sendBtn.disabled = true;
+    sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Отправка...';
+    
+    try {
+        const response = await fetch('/send-reset-code', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+    // Вместо показа в статусDiv, показываем уведомление
+    showNotification(data.message, 'success');
+    
+    // Переключаем на шаг 2
+    document.getElementById('step1').style.display = 'none';
+    document.getElementById('step2').style.display = 'block';
+    
+    // Запускаем таймер
+    startTimer();
+} else {
+    showNotification(data.message, 'danger');
+    
+    sendBtn.disabled = false;
+    sendBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Отправить код на email';
+}
+        
+    } catch (error) {
+        console.error('Error:', error);
+        statusDiv.className = 'alert alert-danger';
+        statusDiv.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Ошибка соединения с сервером';
+        statusDiv.style.display = 'block';
+        
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Отправить код на email';
+    }
+}
+
+// Таймер для повторной отправки
+function startTimer() {
+    timeLeft = 900; // 15 минут
+    const timerDiv = document.getElementById('timer');
+    timerDiv.style.display = 'block';
+    
+    updateTimerDisplay();
+    
+    timerInterval = setInterval(() => {
+        timeLeft--;
+        updateTimerDisplay();
+        
+        if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+            timerDiv.innerHTML = '⏰ Время вышло. <a href="#" onclick="requestResetCode(); return false;">Запросить новый код</a>';
+        }
+    }, 1000);
+}
+
+function updateTimerDisplay() {
+    const minutes = Math.floor(timeLeft / 60);
+    const seconds = timeLeft % 60;
+    const timerDiv = document.getElementById('timer');
+    timerDiv.innerHTML = `⏳ Код действителен: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+// Проверка силы пароля
+document.getElementById('newPassword').addEventListener('input', function(e) {
+    const password = e.target.value;
+    const strengthBar = document.getElementById('passwordStrength');
+    const strengthText = document.getElementById('passwordStrengthText');
+    
+    let strength = 0;
+    
+    if (password.length >= 6) strength += 25;
+    if (password.match(/[a-z]/)) strength += 25;
+    if (password.match(/[A-Z]/)) strength += 25;
+    if (password.match(/[0-9]/)) strength += 25;
+    if (password.match(/[^a-zA-Z0-9]/)) strength += 25;
+    
+    strength = Math.min(strength, 100);
+    
+    strengthBar.style.width = strength + '%';
+    
+    if (strength < 25) {
+        strengthBar.className = 'progress-bar bg-danger';
+        strengthText.textContent = 'Слишком слабый';
+    } else if (strength < 50) {
+        strengthBar.className = 'progress-bar bg-warning';
+        strengthText.textContent = 'Слабый';
+    } else if (strength < 75) {
+        strengthBar.className = 'progress-bar bg-info';
+        strengthText.textContent = 'Средний';
+    } else {
+        strengthBar.className = 'progress-bar bg-success';
+        strengthText.textContent = 'Сильный';
+    }
+});
+
+// Смена пароля с кодом
+async function changePasswordWithCode() {
+    const code = document.getElementById('resetCode').value.trim();
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmNewPassword').value;
+    const statusDiv = document.getElementById('codeStatus');
+    
+    // Валидация
+    if (!code || code.length !== 6 || !/^\d+$/.test(code)) {
+        alert('Введите корректный 6-значный код');
+        return;
+    }
+    
+    if (newPassword.length < 6) {
+        alert('Пароль должен содержать минимум 6 символов');
+        return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+        alert('Пароли не совпадают');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/change-password-with-code', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                code: code,
+                new_password: newPassword
+            })
+        });
+        
+        const data = await response.json();
+        
+        statusDiv.style.display = 'block';
+        
+        if (data.success) {
+            statusDiv.className = 'alert alert-success';
+            statusDiv.innerHTML = '<i class="fas fa-check-circle me-2"></i>' + data.message;
+            
+            // Очищаем поля
+            document.getElementById('resetCode').value = '';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmNewPassword').value = '';
+            
+            // Возвращаемся к шагу 1 через 3 секунды
+            setTimeout(() => {
+                document.getElementById('step1').style.display = 'block';
+                document.getElementById('step2').style.display = 'none';
+                statusDiv.style.display = 'none';
+            }, 3000);
+            
+            // Останавливаем таймер
+            clearInterval(timerInterval);
+            document.getElementById('timer').style.display = 'none';
+        } else {
+            statusDiv.className = 'alert alert-danger';
+            statusDiv.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>' + data.message;
+        }
+        
+    } catch (error) {
+        console.error('Error:', error);
+        statusDiv.className = 'alert alert-danger';
+        statusDiv.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Ошибка соединения с сервером';
+        statusDiv.style.display = 'block';
+    }
+}
+
+// Отмена смены пароля
+function cancelPasswordChange() {
+    document.getElementById('step1').style.display = 'block';
+    document.getElementById('step2').style.display = 'none';
+    document.getElementById('resetCode').value = '';
+    document.getElementById('newPassword').value = '';
+    document.getElementById('confirmNewPassword').value = '';
+    
+    clearInterval(timerInterval);
+    document.getElementById('timer').style.display = 'none';
+    
+    // Разблокируем кнопку отправки
+    const sendBtn = document.getElementById('sendCodeBtn');
+    sendBtn.disabled = false;
+    sendBtn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Отправить код на email';
+}
+
+// Добавляем валидацию для кода (только цифры)
+document.getElementById('resetCode').addEventListener('input', function(e) {
+    this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
+});
+</script>
+<script>
+// Предпросмотр аватара перед загрузкой
+function previewAvatar(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            document.getElementById('avatarPreview').src = e.target.result;
+        }
+        
+        reader.readAsDataURL(input.files[0]);
+        
+        // Проверка размера файла (макс 16MB)
+        if (input.files[0].size > 16 * 1024 * 1024) {
+            alert('Файл слишком большой. Максимальный размер 16MB');
+            input.value = '';
+        }
+        
+        // Проверка типа файла
+        const fileType = input.files[0].type;
+        if (!fileType.match(/image\/(jpeg|png|gif)/)) {
+            alert('Разрешены только изображения (JPEG, PNG, GIF)');
+            input.value = '';
+        }
+    }
+}
+
+// Валидация формы перед отправкой
+document.getElementById('editProfileForm').addEventListener('submit', function(e) {
+    const username = document.getElementById('username').value;
+    const email = document.getElementById('email').value;
+    const bio = document.getElementById('bio').value;
+    
+    if (username.length < 3) {
+        e.preventDefault();
+        alert('Имя пользователя должно содержать минимум 3 символа');
+        return;
+    }
+    
+    if (!email.includes('@') || !email.includes('.')) {
+        e.preventDefault();
+        alert('Введите корректный email адрес');
+        return;
+    }
+    
+    if (bio.length > 500) {
+        e.preventDefault();
+        alert('Описание не может превышать 500 символов');
+        return;
+    }
+});
+
+// Подтверждение сохранения
+document.getElementById('submitBtn').addEventListener('click', function(e) {
+    if (!confirm('Сохранить изменения профиля?')) {
+        e.preventDefault();
+    }
+});
+</script>
+<script>
+    // Переменные для таймера email
+let emailTimerInterval;
+let emailTimeLeft = 900;
+
+// Показать форму смены email
+function showEmailChangeForm() {
+    document.getElementById('emailChangeForm').style.display = 'block';
+    document.getElementById('changeEmailBtn').disabled = true;
+    document.getElementById('newEmail').focus();
+}
+
+/// Отправить код на СТАРЫЙ email
+async function sendEmailChangeCode() {
+    const newEmail = document.getElementById('newEmail').value.trim();
+    const statusDiv = document.getElementById('emailStatus');
+    const step1 = document.getElementById('emailStep1');
+    const step2 = document.getElementById('emailStep2');
+    
+    if (!newEmail || !newEmail.includes('@') || !newEmail.includes('.')) {
+        showEmailStatus('Введите корректный email адрес', 'danger');
+        return;
+    }
+    
+    try {
+        step1.style.display = 'none';
+        statusDiv.className = 'alert alert-info';
+        statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Отправка кода на ваш текущий email...';
+        statusDiv.style.display = 'block';
+        
+        const response = await fetch('/send-email-change-code', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ new_email: newEmail })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Сохраняем новый email для отображения
+            document.getElementById('newEmailDisplay').textContent = newEmail;
+            step2.style.display = 'block';
+            document.getElementById('emailCode').focus();
+            
+            // ИЗМЕНЕНО: показываем сообщение со старой почтой (приходит с сервера)
+            showEmailStatus(data.message, 'success');
+            
+            startEmailTimer();
+            
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 5000);
+        } else {
+            step1.style.display = 'block';
+            showEmailStatus(data.message, 'danger');
+        }
+        
+    } catch (error) {
+        console.error('Error:', error);
+        step1.style.display = 'block';
+        showEmailStatus('Ошибка соединения с сервером', 'danger');
+    }
+}
+
+// Подтвердить смену email (код пришел на СТАРУЮ почту)
+async function verifyEmailChange() {
+    const code = document.getElementById('emailCode').value.trim();
+    const statusDiv = document.getElementById('emailStatus');
+    
+    if (!code || code.length !== 6 || !/^\d+$/.test(code)) {
+        showEmailStatus('Введите корректный 6-значный код', 'danger');
+        return;
+    }
+    
+    try {
+        statusDiv.className = 'alert alert-info';
+        statusDiv.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Проверка кода...';
+        statusDiv.style.display = 'block';
+        
+        const response = await fetch('/verify-email-change', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ code: code })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showEmailStatus(data.message, 'success');
+            
+            // Обновляем отображаемый email
+            setTimeout(() => {
+                location.reload(); // Перезагружаем страницу для обновления данных
+            }, 2000);
+        } else {
+            showEmailStatus(data.message, 'danger');
+        }
+        
+    } catch (error) {
+        console.error('Error:', error);
+        showEmailStatus('Ошибка соединения с сервером', 'danger');
+    }
+}
+
+// Отмена смены email
+function cancelEmailChange() {
+    document.getElementById('emailChangeForm').style.display = 'none';
+    document.getElementById('changeEmailBtn').disabled = false;
+    document.getElementById('emailStep1').style.display = 'block';
+    document.getElementById('emailStep2').style.display = 'none';
+    document.getElementById('newEmail').value = '';
+    document.getElementById('emailCode').value = '';
+    
+    clearInterval(emailTimerInterval);
+    document.getElementById('emailTimer').style.display = 'none';
+}
+
+// Показать статус для email (теперь использует уведомления)
+function showEmailStatus(message, type) {
+    // Используем глобальную функцию уведомлений
+    if (typeof showNotification === 'function') {
+        showNotification(message, type);
+    } else {
+        // Запасной вариант, если функция еще не загружена
+        const statusDiv = document.getElementById('emailStatus');
+        statusDiv.className = `alert alert-${type}`;
+        statusDiv.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>${message}`;
+        statusDiv.style.display = 'block';
+        setTimeout(() => statusDiv.style.display = 'none', 3000);
+    }
+}
+
+// Таймер для email кода
+function startEmailTimer() {
+    emailTimeLeft = 900;
+    const timerDiv = document.getElementById('emailTimer');
+    timerDiv.style.display = 'block';
+    
+    updateEmailTimerDisplay();
+    
+    emailTimerInterval = setInterval(() => {
+        emailTimeLeft--;
+        updateEmailTimerDisplay();
+        
+        if (emailTimeLeft <= 0) {
+            clearInterval(emailTimerInterval);
+            timerDiv.innerHTML = '⏰ Время вышло. <a href="#" onclick="sendEmailChangeCode(); return false;">Отправить новый код</a>';
+        }
+    }, 1000);
+}
+
+function updateEmailTimerDisplay() {
+    const minutes = Math.floor(emailTimeLeft / 60);
+    const seconds = emailTimeLeft % 60;
+    const timerDiv = document.getElementById('emailTimer');
+    timerDiv.innerHTML = `⏳ Код действителен: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+// Валидация для кода (только цифры)
+document.getElementById('emailCode').addEventListener('input', function(e) {
+    this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
+});
+</script>
+{% endblock %}

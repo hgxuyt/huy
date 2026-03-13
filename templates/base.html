@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Социальная сеть{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Наш CSS файл с версией для сброса кэша -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ range(1, 100000) | random }}">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 60px;
+        }
+        .navbar-brand {
+            font-weight: bold;
+            color: #0d6efd !important;
+        }
+        .post-card {
+            margin-bottom: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .avatar-large {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        .like-btn {
+            cursor: pointer;
+            color: #6c757d;
+            transition: color 0.3s;
+        }
+        .like-btn.liked {
+            color: #dc3545;
+        }
+        .like-btn:hover {
+            color: #dc3545;
+        }
+        .follow-btn {
+            margin-left: 10px;
+        }
+        .alert {
+            margin-top: 20px;
+        }
+   /* Вкладки на главной странице - без фона и полукругов */
+.nav-tabs {
+    border-bottom: 2px solid var(--border-color, #dee2e6);
+    margin-bottom: 1.5rem;
+}
+
+.nav-tabs .nav-link {
+    color: var(--text-muted, #6c757d) !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0.75rem 1.5rem !important;
+    margin-right: 0.5rem;
+    position: relative;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.nav-tabs .nav-link:hover {
+    color: var(--primary-color, #0d6efd) !important;
+    background: transparent !important;
+    transform: translateY(-1px);
+}
+
+.nav-tabs .nav-link.active {
+    color: var(--primary-color, #0d6efd) !important;
+    background: transparent !important;
+    border: none !important;
+    font-weight: 600;
+}
+
+/* Нижняя полоска для активной вкладки - без анимации по умолчанию */
+.nav-tabs .nav-link.active:after {
+    content: '';
+    height: 2.5px;
+    background-color: var(--primary-color, #0d6efd);
+}
+
+/* Анимация только при клике/переходе (через JavaScript) */
+.nav-tabs .nav-link.active.animate:after {
+    animation: slideIn 0.2s ease;
+}
+
+@keyframes slideIn {
+    from {
+        transform: scaleX(0);
+    }
+    to {
+        transform: scaleX(1);
+    }
+}
+
+.nav-tabs .nav-link i {
+    color: inherit !important;
+    margin-right: 0.5rem;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .nav-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 0;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .nav-tabs .nav-item {
+        flex: 0 0 auto;
+    }
+    
+    .nav-tabs .nav-link {
+        padding: 0.5rem 1rem !important;
+        font-size: 0.9rem;
+        white-space: nowrap;
+    }
+    
+    .nav-tabs .nav-link i {
+        font-size: 0.9rem;
+    }
+}
+
+/* Темная тема */
+@media (prefers-color-scheme: dark) {
+    .nav-tabs {
+        border-bottom-color: var(--border-color, #334155);
+    }
+    
+    .nav-tabs .nav-link {
+        color: var(--text-muted, #94a3b8) !important;
+    }
+    
+    .nav-tabs .nav-link:hover {
+        color: var(--primary-color, #60a5fa) !important;
+    }
+    
+    .nav-tabs .nav-link.active {
+        color: var(--primary-color, #60a5fa) !important;
+    }
+    
+    .nav-tabs .nav-link.active:after {
+        background-color: var(--primary-color, #60a5fa);
+    }
+}
+</style>
+</head>
+<body>
+    <!-- Навигация -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white fixed-top shadow-sm">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="fas fa-users me-2"></i>Psychoolds
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    {% if current_user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('index') }}">
+                                <i class="fas fa-home"></i> Главная
+                            </a>
+                        </li>
+                        <!-- В разделе для авторизованных пользователей добавьте: -->
+<li class="nav-item position-relative">
+    <a class="nav-link" href="{{ url_for('messages') }}">
+        <i class="fas fa-envelope"></i> Сообщения
+        <span class="badge bg-danger rounded-pill messages-badge" style="display: none;">0</span>
+    </a>
+</li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('ai_chat') }}">
+                                <i class="fas fa-robot"></i> Маришка
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('profile', username=current_user.username) }}">
+                                <img src="{% if current_user.avatar != 'default.jpg' %}{{ url_for('static', filename='uploads/' + current_user.avatar) }}{% else %}https://ui-avatars.com/api/?name={{ current_user.username }}&background=0D6EFD&color=fff&size=40{% endif %}" 
+                         class="avatar" 
+                         alt="Avatar"
+                         style="width: 40px; height: 40px; object-fit: cover;"> {{ current_user.username }}
+                            </a>
+                        </li>
+                        
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('login') }}">
+                                <i class="fas fa-sign-in-alt"></i> Вход
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('register') }}">
+                                <i class="fas fa-user-plus"></i> Регистрация
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+<div id="notification-container" style="position: fixed; top: 70px; right: 20px; z-index: 9999; max-width: 350px;"></div>
+
+    <!-- Flash сообщения -->
+    <div class="container mt-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Основной контент -->
+    <main class="container mt-4">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    {% block scripts %}{% endblock %}
+    <script>
+// Обновление счетчика непрочитанных сообщений
+function updateUnreadCount() {
+    fetch('/api/unread_count')
+        .then(response => response.json())
+        .then(data => {
+            const badge = document.querySelector('.messages-badge');
+            if (badge) {
+                if (data.count > 0) {
+                    badge.textContent = data.count;
+                    badge.style.display = 'inline';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+        });
+}
+
+// Обновляем при загрузке страницы
+document.addEventListener('DOMContentLoaded', updateUnreadCount);
+
+// И каждые 10 секунд
+setInterval(updateUnreadCount, 10000);
+</script>
+<script>
+// Функция для показа уведомлений
+function showNotification(message, type = 'success', duration = 3000) {
+    const container = document.getElementById('notification-container');
+    
+    // Создаем уведомление
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show`;
+    notification.role = 'alert';
+    notification.style.cssText = `
+        margin-bottom: 10px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        animation: slideIn 0.3s ease;
+        border-left: 4px solid ${type === 'success' ? '#28a745' : type === 'danger' ? '#dc3545' : type === 'warning' ? '#ffc107' : '#17a2b8'};
+    `;
+    
+    // Иконка в зависимости от типа
+    const icon = type === 'success' ? '✅' : type === 'danger' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
+    
+    notification.innerHTML = `
+        <div style="display: flex; align-items: center;">
+            <span style="font-size: 1.2rem; margin-right: 10px;">${icon}</span>
+            <div style="flex-grow: 1;">${message}</div>
+        </div>
+    `;
+    
+    container.appendChild(notification);
+    
+    // Автоматически скрываем через указанное время
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 300);
+    }, duration);
+}
+
+// Добавляем стили для анимации
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
+    
+    .alert {
+        transition: all 0.3s ease;
+    }
+    
+    .alert.fade.show {
+        animation: slideIn 0.3s ease;
+    }
+    
+    .alert.fade:not(.show) {
+        animation: slideOut 0.3s ease forwards;
+    }
+`;
+document.head.appendChild(style);
+
+// Перехватываем стандартные flash сообщения и показываем их как уведомления
+document.addEventListener('DOMContentLoaded', function() {
+    // Находим все стандартные flash сообщения
+    const flashMessages = document.querySelectorAll('.alert:not(#notification-container .alert)');
+    
+    flashMessages.forEach(function(flash) {
+        // Определяем тип сообщения по классу
+        let type = 'info';
+        if (flash.classList.contains('alert-success')) type = 'success';
+        else if (flash.classList.contains('alert-danger')) type = 'danger';
+        else if (flash.classList.contains('alert-warning')) type = 'warning';
+        else if (flash.classList.contains('alert-info')) type = 'info';
+        
+        // Получаем текст сообщения
+        const message = flash.innerText.replace('×', '').trim();
+        
+        // Показываем как уведомление
+        if (message) {
+            showNotification(message, type);
+        }
+        
+        // Скрываем оригинальное сообщение
+        flash.style.display = 'none';
+    });
+});
+
+
+</script>
+<script>
+// Общий обработчик лайков для всех страниц
+$(document).ready(function() {
+    $(document).on('click', '.like-btn', function(e) {
+        e.preventDefault();
+        
+        {% if current_user.is_authenticated %}
+            const btn = $(this);
+            
+            if (btn.data('processing')) return;
+            
+            const postId = btn.data('post-id');
+            const wasLiked = btn.hasClass('liked');
+            
+            btn.data('processing', true);
+            btn.css('opacity', '0.5');
+            
+            $.ajax({
+                url: `/post/${postId}/like`,
+                method: 'POST',
+                success: function(data) {
+                    if (data.liked) {
+                        btn.addClass('liked');
+                        showNotification('❤️ Лайк поставлен!', 'success');
+                    } else {
+                        btn.removeClass('liked');
+                        showNotification('💔 Лайк убран', 'info');
+                    }
+                    
+                    btn.find('.like-count').text(data.like_count);
+                    
+                    // Анимация
+                    btn.find('i').addClass('pulse');
+                    setTimeout(() => btn.find('i').removeClass('pulse'), 300);
+                    
+                    btn.css('opacity', '1');
+                },
+                error: function(xhr, status, error) {
+                    console.error('Ошибка:', error);
+                    btn.css('opacity', '1');
+                    
+                    if (xhr.status === 401) {
+                        showNotification('Необходимо войти в систему', 'warning');
+                        setTimeout(() => window.location.href = "{{ url_for('login') }}", 1500);
+                    } else {
+                        showNotification('Ошибка при обработке лайка', 'danger');
+                    }
+                },
+                complete: function() {
+                    btn.data('processing', false);
+                }
+            });
+        {% else %}
+            showNotification('Войдите, чтобы ставить лайки', 'warning');
+            setTimeout(() => window.location.href = "{{ url_for('login') }}", 1500);
+        {% endif %}
+    });
+});
+
+// Добавляем стили для анимации пульсации (если их еще нет)
+if (!$('#like-styles').length) {
+    $('<style id="like-styles">')
+        .prop('type', 'text/css')
+        .html(`
+            .pulse {
+                animation: heartbeat 0.3s ease-in-out;
+            }
+            
+            @keyframes heartbeat {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.3); }
+                100% { transform: scale(1); }
+            }
+            
+            .like-btn {
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+            
+            .like-btn.liked i {
+                font-weight: 900;
+                color: #dc3545;
+            }
+            
+            .like-btn[style*="pointer-events: none"] {
+                opacity: 0.5 !important;
+            }
+        `)
+        .appendTo('head');
+}
+</script>
+<script>
+// Управление анимацией вкладок
+document.addEventListener('DOMContentLoaded', function() {
+    // Убираем класс анимации со всех активных вкладок при загрузке
+    const activeTabs = document.querySelectorAll('.nav-tabs .nav-link.active');
+    activeTabs.forEach(tab => {
+        tab.classList.remove('animate');
+    });
+    
+    // Добавляем обработчик кликов на вкладки
+    const tabs = document.querySelectorAll('.nav-tabs .nav-link');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function(e) {
+            // Убираем анимацию со всех вкладок
+            tabs.forEach(t => t.classList.remove('animate'));
+            
+            // Добавляем анимацию только на кликнутую вкладку
+            // (она станет активной после перехода)
+            this.classList.add('animate');
+        });
+    });
+});
+
+// Альтернативный вариант с использованием jQuery (если он уже подключен)
+$(document).ready(function() {
+    // Убираем анимацию при загрузке
+    $('.nav-tabs .nav-link.active').removeClass('animate');
+    
+    // Добавляем анимацию при клике
+    $('.nav-tabs .nav-link').on('click', function() {
+        $('.nav-tabs .nav-link').removeClass('animate');
+        $(this).addClass('animate');
+    });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,429 @@
+{% extends "base.html" %}
+
+{% block title %}Профиль {{ profile_user.username }}{% endblock %}
+
+{% block content %}
+<div class="row" style="margin-top: 3%;">
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-body text-center">
+                <img src="{% if profile_user.avatar != 'default.jpg' %}{{ url_for('static', filename='uploads/' + profile_user.avatar) }}{% else %}https://ui-avatars.com/api/?name={{ profile_user.username }}&background=0D6EFD&color=fff&size=100{% endif %}" 
+                     class="avatar-large mb-3" 
+                     alt="Avatar"
+                     style="width: 100px; height: 100px; object-fit: cover;">
+                
+                <h4>{{ profile_user.username }}</h4>
+                <p class="text-muted">
+                    <i class="fas fa-envelope"></i> {{ profile_user.email }}
+                </p>
+                
+                {% if profile_user.bio %}
+                    <p class="card-text">{{ profile_user.bio }}</p>
+                {% endif %}
+                
+                <div class="d-flex justify-content-around mt-3">
+                    <div>
+                        <h5>{{ profile_user.posts|length }}</h5>
+                        <small class="text-muted">Постов</small>
+                    </div>
+                    <div>
+                        <h5>{{ profile_user.followers.count() }}</h5>
+                        <small class="text-muted">Подписчиков</small>
+                    </div>
+                    <div>
+                        <h5>{{ profile_user.followed.count() }}</h5>
+                        <small class="text-muted">Подписок</small>
+                    </div>
+                </div>
+                
+               <!-- Кнопки действий -->
+<div class="mt-3">
+    {% if current_user.is_authenticated %}
+        {% if current_user == profile_user %}
+            <!-- Своя страница -->
+            <div class="d-flex flex-column gap-2">
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('edit_profile') }}" class="btn btn-primary flex-grow-1">
+                        <i class="fas fa-edit me-2"></i>Редактировать профиль
+                    </a>
+                </div>
+                
+                <!-- Кнопка выхода -->
+                <a href="{{ url_for('logout') }}" class="btn btn-outline-danger w-100">
+                    <i class="fas fa-sign-out-alt me-2"></i>Выйти из аккаунта
+                </a>
+                
+                <!-- Статистика для мобильных (если нужно) -->
+                <div class="d-md-none mt-2">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <h6>{{ profile_user.posts|length }}</h6>
+                            <small class="text-muted">Постов</small>
+                        </div>
+                        <div class="col-4">
+                            <h6>{{ profile_user.followers.count() }}</h6>
+                            <small class="text-muted">Подписчиков</small>
+                        </div>
+                        <div class="col-4">
+                            <h6>{{ profile_user.followed.count() }}</h6>
+                            <small class="text-muted">Подписок</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <!-- Чужой профиль -->
+            <div class="d-flex gap-2">
+                {% if is_following %}
+                    <a href="{{ url_for('unfollow_user', username=profile_user.username) }}" 
+                       class="btn btn-outline-danger flex-grow-1">
+                        <i class="fas fa-user-minus me-2"></i>Отписаться
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('follow_user', username=profile_user.username) }}" 
+                       class="btn btn-primary flex-grow-1">
+                        <i class="fas fa-user-plus me-2"></i>Подписаться
+                    </a>
+                {% endif %}
+                
+                <a href="{{ url_for('conversation', user_id=profile_user.id) }}" 
+                   class="btn btn-success">
+                    <i class="fas fa-envelope"></i>
+                </a>
+            </div>
+        {% endif %}
+    {% else %}
+        <!-- Неавторизованный пользователь -->
+        <a href="{{ url_for('login') }}" class="btn btn-primary w-100">
+            <i class="fas fa-sign-in-alt me-2"></i>Войдите, чтобы подписаться
+        </a>
+    {% endif %}
+</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <!-- Вкладки: Посты и Комментарии (только для своего профиля) -->
+        {% if current_user == profile_user %}
+        <ul class="nav nav-tabs mb-3">
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'posts' %}active{% endif %}" 
+                   href="{{ url_for('profile', username=profile_user.username, tab='posts') }}">
+                    <i class="fas fa-newspaper me-1"></i>Мои посты
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if active_tab == 'comments' %}active{% endif %}" 
+                   href="{{ url_for('profile', username=profile_user.username, tab='comments') }}">
+                    <i class="fas fa-comments me-1"></i>Комментарии к моим постам
+                   
+                </a>
+            </li>
+        </ul>
+        {% endif %}
+        
+        <!-- Контент вкладок -->
+        {% if active_tab == 'comments' and current_user == profile_user %}
+            <!-- Вкладка с комментариями -->
+            {% if comments and comments.items %}
+                <h4 class="mb-3">
+                    <i class="fas fa-comments me-2"></i>Комментарии к моим постам
+                </h4>
+                
+                {% for comment in comments.items %}
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="d-flex">
+                                <img src="{% if comment.author.avatar != 'default.jpg' %}{{ url_for('static', filename='uploads/' + comment.author.avatar) }}{% else %}https://ui-avatars.com/api/?name={{ comment.author.username }}&background=6c757d&color=fff&size=40{% endif %}" 
+                                     class="avatar me-2" 
+                                     alt="Avatar"
+                                     style="width: 40px; height: 40px; object-fit: cover;">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <a href="{{ url_for('profile', username=comment.author.username) }}" class="fw-bold text-decoration-none">
+                                                {{ comment.author.username }}
+                                            </a>
+                                            <small class="text-muted ms-2">
+                                                {{ comment.timestamp.strftime('%d.%m.%Y %H:%M') }}
+                                            </small>
+                                        </div>
+                                    </div>
+                                    
+                                    <p class="mt-2 mb-2">{{ comment.content }}</p>
+                                    
+                                    <!-- Ссылка на пост -->
+                                    <div class="bg-light p-2 rounded">
+                                        <small class="text-muted">
+                                            <i class="fas fa-reply me-1"></i>
+                                            Комментарий к посту:
+                                        </small>
+                                        <div class="mt-1">
+                                            <a href="{{ url_for('index', _anchor='post-' + comment.post.id|string) }}" class="text-decoration-none">
+                                                <strong>{{ comment.post.author.username }}</strong>: 
+                                                {{ comment.post.content[:100] }}{% if comment.post.content|length > 100 %}...{% endif %}
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+                
+                <!-- Пагинация для комментариев -->
+                {% if comments.pages > 1 %}
+                <nav aria-label="Page navigation" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if comments.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('profile', username=profile_user.username, tab='comments', page=comments.prev_num) }}">←</a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for page_num in comments.iter_pages() %}
+                            {% if page_num %}
+                                <li class="page-item {% if page_num == comments.page %}active{% endif %}">
+                                    <a class="page-link" href="{{ url_for('profile', username=profile_user.username, tab='comments', page=page_num) }}">{{ page_num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if comments.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('profile', username=profile_user.username, tab='comments', page=comments.next_num) }}">→</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+                
+            {% else %}
+                <div class="alert alert-info text-center">
+                    <i class="fas fa-comments me-2"></i>
+                    Пока нет комментариев к вашим постам.
+                </div>
+            {% endif %}
+            
+        {% else %}
+    <!-- Вкладка с постами (по умолчанию) -->
+    <h4 class="mb-3">
+        {% if current_user == profile_user %}
+            <i class="fas fa-newspaper me-2"></i>Мои посты
+        {% else %}
+            <i class="fas fa-newspaper me-2"></i>Посты пользователя {{ profile_user.username }}
+        {% endif %}
+    </h4>
+    
+    {% if posts and posts.items %}
+        {% for post in posts.items %}
+            <div class="card post-card mb-3" id="post-{{ post.id }}">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <img src="{% if post.author.avatar != 'default.jpg' %}{{ url_for('static', filename='uploads/' + post.author.avatar) }}{% else %}https://ui-avatars.com/api/?name={{ post.author.username }}&background=0D6EFD&color=fff&size=40{% endif %}" 
+                             class="avatar me-2" 
+                             alt="Avatar"
+                             style="width: 40px; height: 40px; object-fit: cover;">
+                        <div>
+                            <span class="fw-bold">{{ post.author.username }}</span>
+                            <small class="text-muted d-block">
+                                {{ post.timestamp.strftime('%d.%m.%Y %H:%M') }}
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <p class="card-text">{{ post.content }}</p>
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <!-- Кнопка лайка с AJAX -->
+                            <span class="like-btn {% if current_user.is_authenticated and post.likes|selectattr('user_id', 'equalto', current_user.id)|list %}liked{% endif %}" 
+                                  data-post-id="{{ post.id }}">
+                                <i class="fas fa-heart"></i>
+                                <span class="like-count">{{ post.likes|length }}</span>
+                            </span>
+                            <span class="ms-3 text-muted">
+                                <i class="fas fa-comment"></i> {{ post.comments|length }}
+                            </span>
+                        </div>
+                        
+
+                    </div>
+                    
+                    <!-- Форма комментария -->
+                    {% if current_user.is_authenticated %}
+                        <form action="{{ url_for('add_comment', post_id=post.id) }}" 
+                              method="post" class="mt-3">
+                            <div class="input-group">
+                                <input type="text" class="form-control form-control-sm" 
+                                       name="content" placeholder="Написать комментарий..." required>
+                                <button class="btn btn-sm btn-outline-primary" type="submit">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </form>
+                    {% endif %}
+                    
+                    <!-- Комментарии к посту -->
+                    {% if post.comments %}
+                        <div class="mt-3">
+                            <hr>
+                            <h6 class="text-muted">Комментарии:</h6>
+                            {% for comment in post.comments|sort(attribute='timestamp', reverse=True) %}
+                                <div class="d-flex mt-2">
+                                    <img src="{% if comment.author.avatar != 'default.jpg' %}{{ url_for('static', filename='uploads/' + comment.author.avatar) }}{% else %}https://ui-avatars.com/api/?name={{ comment.author.username }}&background=6c757d&color=fff&size=30{% endif %}" 
+                                         class="avatar me-2" 
+                                         alt="Avatar"
+                                         style="width: 30px; height: 30px; object-fit: cover;">
+                                    <div class="bg-light p-2 rounded flex-grow-1">
+                                        <div class="d-flex justify-content-between">
+                                            <div>
+                                                <strong>{{ comment.author.username }}</strong>
+                                            </div>
+                                            <small class="text-muted">
+                                                {{ comment.timestamp.strftime('%H:%M %d.%m.%Y') }}
+                                            </small>
+                                        </div>
+                                        <p class="mb-0 small">{{ comment.content }}</p>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+        
+        <!-- Пагинация для постов -->
+        {% if posts.pages > 1 %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if posts.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('profile', username=profile_user.username, tab='posts', page=posts.prev_num) }}">←</a>
+                    </li>
+                {% endif %}
+                
+                {% for page_num in posts.iter_pages() %}
+                    {% if page_num %}
+                        <li class="page-item {% if page_num == posts.page %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('profile', username=profile_user.username, tab='posts', page=page_num) }}">{{ page_num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if posts.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('profile', username=profile_user.username, tab='posts', page=posts.next_num) }}">→</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+        
+    {% else %}
+        <div class="alert alert-info text-center">
+            <i class="fas fa-newspaper me-2"></i>
+            {% if current_user == profile_user %}
+                У вас пока нет постов. 
+                <a href="{{ url_for('index') }}">Создайте первый пост!</a>
+            {% else %}
+                У пользователя пока нет постов.
+            {% endif %}
+        </div>
+    {% endif %}
+{% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showReplyForm(postId) {
+    // Прокручиваем к посту и фокусируемся на поле ввода
+    window.location.href = "{{ url_for('index') }}#post-" + postId;
+    setTimeout(function() {
+        const input = document.querySelector(`#post-${postId} input[name="content"]`);
+        if (input) {
+            input.focus();
+        }
+    }, 500);
+}
+</script>
+<script>
+// Специфичный для профиля код
+function showReplyForm(postId) {
+    window.location.href = "{{ url_for('index') }}#post-" + postId;
+    setTimeout(function() {
+        const input = document.querySelector(`#post-${postId} input[name="content"]`);
+        if (input) {
+            input.focus();
+        }
+    }, 500);
+}
+
+// Убеждаемся, что лайки работают на странице профиля
+$(document).ready(function() {
+    // Лайки уже обрабатываются через делегирование событий из base.html
+    console.log('Страница профиля загружена, лайки активны');
+});
+</script>
+<!-- В профиле, для кнопок подписки/отписки -->
+<script>
+function handleFollow(action, username) {
+    fetch(`/${action}/${username}`)
+        .then(response => {
+            if (response.ok) {
+                const message = action === 'follow' ? '👍 Вы подписались на ' + username : '👎 Вы отписались от ' + username;
+                showNotification(message, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showNotification('Ошибка при выполнении действия', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Ошибка соединения', 'danger');
+        });
+}
+</script>
+<script>
+// AJAX отправка комментариев в профиле
+$(document).ready(function() {
+    $(document).on('click', '.comment-submit', function() {
+        const form = $(this).closest('.comment-form');
+        const postId = form.data('post-id');
+        const input = form.find('.comment-input');
+        const content = input.val().trim();
+        
+        if (!content) {
+            showNotification('Комментарий не может быть пустым', 'warning');
+            return;
+        }
+        
+        const btn = $(this);
+        btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+        
+        $.ajax({
+            url: `/post/${postId}/comment`,
+            method: 'POST',
+            data: { content: content },
+            success: function() {
+                input.val('');
+                showNotification('💬 Комментарий добавлен', 'success');
+                
+                // Перезагружаем страницу, чтобы показать комментарий
+                setTimeout(() => location.reload(), 1000);
+            },
+            error: function() {
+                showNotification('Ошибка при добавлении комментария', 'danger');
+            },
+            complete: function() {
+                btn.prop('disabled', false).html('<i class="fas fa-paper-plane"></i>');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

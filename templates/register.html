@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Регистрация{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0"><i class="fas fa-user-plus"></i> Регистрация</h4>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('register') }}">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Имя пользователя *</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                        <div class="form-text">Минимум 3 символа</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email *</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                        <div class="form-text">Введите действующий email</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Пароль *</label>
+                        <input type="password" class="form-control" id="password" name="password" required minlength="6">
+                        <div class="form-text">Минимум 6 символов</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="confirm_password" class="form-label">Подтверждение пароля *</label>
+                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="fas fa-user-check"></i> Зарегистрироваться
+                    </button>
+                </form>
+                
+                <hr>
+                
+                <p class="text-center mb-0">
+                    Уже есть аккаунт? <a href="{{ url_for('login') }}">Войти</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Простая валидация на клиенте
+document.querySelector('form').addEventListener('submit', function(e) {
+    const password = document.getElementById('password').value;
+    const confirm = document.getElementById('confirm_password').value;
+    
+    if (password !== confirm) {
+        e.preventDefault();
+        alert('Пароли не совпадают!');
+    }
+});
+</script>
+{% endblock %}

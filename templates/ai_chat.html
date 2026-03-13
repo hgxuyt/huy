@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block title %}AI Чат - Социальная сеть{% endblock %}
+
+{% block content %}
+<div class="row" style="margin-top: 3%;">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h4 class="mb-0"><i class="fas fa-robot me-2"></i>Маришка</h4>
+                <span class="badge bg-light text-dark" id="aiStatusBadge">
+                    {% if ai_enabled %}
+                        <i class="fas fa-circle text-success me-1" style="font-size: 8px;"></i> AI Активен
+                    {% else %}
+                        <i class="fas fa-circle text-danger me-1" style="font-size: 8px;"></i> AI Недоступен
+                    {% endif %}
+                </span>
+            </div>
+            <div class="card-body p-0" style="height: 500px; display: flex; flex-direction: column;">
+                <!-- Контейнер сообщений -->
+                <div id="chatMessages" class="p-3" style="flex-grow: 1; overflow-y: auto; background: #f8f9fa;">
+                    <!-- Приветственное сообщение -->
+                    <div class="d-flex mb-3" id="welcomeMessage">
+                        <div class="me-2">
+                            <img src="https://ui-avatars.com/api/?name=AI&background=0D6EFD&color=fff&size=40" 
+                                 class="rounded-circle" style="width: 40px; height: 40px;">
+                        </div>
+                        <div class="bg-white p-3 rounded-3 shadow-sm" style="max-width: 70%;">
+                            <strong class="text-primary">Маришка</strong>
+                            <p class="mb-0 mt-1">Здравствуйте, {{ current_user.username }}! Я Маришка. Спрашивайте меня о чем угодно - я помогу с программированием, отвечу на вопросы, дам советы или просто поболтаю!</p>
+                            <small class="text-muted">{{ now.strftime('%H:%M') }}</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Индикатор загрузки -->
+                <div id="loadingIndicator" class="px-3 pb-2" style="display: none;">
+                    <div class="d-flex align-items-center text-muted">
+                        <div class="spinner-border spinner-border-sm me-2" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                        <small>AI думает...</small>
+                    </div>
+                </div>
+                
+                <!-- Поле ввода -->
+                <div class="p-3 border-top">
+                    <form id="chatForm" onsubmit="return false;">
+                        <div class="input-group">
+                            <input type="text" 
+                                   id="messageInput" 
+                                   class="form-control form-control-lg" 
+                                   placeholder="Введите сообщение..." 
+                                   autocomplete="off"
+                                   {% if not ai_enabled %}disabled{% endif %}>
+                            <button class="btn btn-primary" type="button" id="sendButton" onclick="sendMessage()" {% if not ai_enabled %}disabled{% endif %}>
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                        <div class="d-flex justify-content-between mt-2">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                AI может ошибаться, проверяйте важную информацию
+                            </small>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Предложения для быстрых вопросов -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-bolt me-2"></i>Быстрые вопросы</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-outline-primary btn-sm" onclick="quickQuestion('Как создать пост?')" {% if not ai_enabled %}disabled{% endif %}>
+                        Как создать пост?
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" onclick="quickQuestion('Расскажи о себе')" {% if not ai_enabled %}disabled{% endif %}>
+                        Расскажи о себе
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" onclick="quickQuestion('Напиши приветствие на Python')" {% if not ai_enabled %}disabled{% endif %}>
+                        Напиши код на Python
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" onclick="quickQuestion('Что нового в мире IT?')" {% if not ai_enabled %}disabled{% endif %}>
+                        Новости IT
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" onclick="quickQuestion('Как улучшить социальную сеть?')" {% if not ai_enabled %}disabled{% endif %}>
+                        Идеи для сайта
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" onclick="quickQuestion('Расскажи анекдот')" {% if not ai_enabled %}disabled{% endif %}>
+                        Анекдот
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+let chatHistory = [];
+let isWaitingForResponse = false;
+
+// Функция для добавления сообщения пользователя
+function addUserMessage(content) {
+    const chatMessages = document.getElementById('chatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'd-flex mb-3 justify-content-end';
+    
+    const time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    
+    messageDiv.innerHTML = `
+        <div class="bg-primary text-white p-3 rounded-3 shadow-sm" style="max-width: 70%;">
+            <p class="mb-0">${escapeHtml(content)}</p>
+            <small class="text-white-50">${time}</small>
+        </div>
+        <div class="ms-2">
+            <img src="https://ui-avatars.com/api/?name=${encodeURIComponent('{{ current_user.username }}')}&background=6C757D&color=fff&size=40" 
+                 class="rounded-circle" style="width: 40px; height: 40px;">
+        </div>
+    `;
+    
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Функция для добавления сообщения AI
+function addAIMessage(content) {
+    const chatMessages = document.getElementById('chatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'd-flex mb-3';
+    
+    const time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    
+    // Форматируем контент (поддерживаем Markdown)
+    let formattedContent = content;
+    if (window.marked) {
+        formattedContent = marked.parse(content);
+    } else {
+        formattedContent = content.replace(/\n/g, '<br>');
+    }
+    
+    messageDiv.innerHTML = `
+        <div class="me-2">
+            <img src="https://ui-avatars.com/api/?name=AI&background=0D6EFD&color=fff&size=40" 
+                 class="rounded-circle" style="width: 40px; height: 40px;">
+        </div>
+        <div class="bg-white p-3 rounded-3 shadow-sm" style="max-width: 70%;">
+            <strong class="text-primary">Маришка</strong>
+            <div class="mb-0 mt-1">${formattedContent}</div>
+            <small class="text-muted">${time}</small>
+        </div>
+    `;
+    
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+// Экранирование HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Отправка сообщения
+async function sendMessage() {
+    const input = document.getElementById('messageInput');
+    const message = input.value.trim();
+    
+    if (!message || isWaitingForResponse) return;
+    
+    // Добавляем сообщение пользователя
+    addUserMessage(message);
+    input.value = '';
+    
+    // Показываем индикатор загрузки
+    document.getElementById('loadingIndicator').style.display = 'block';
+    isWaitingForResponse = true;
+    document.getElementById('sendButton').disabled = true;
+    document.getElementById('messageInput').disabled = true;
+    
+    try {
+        const response = await fetch('/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message: message
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            addAIMessage(`❌ Ошибка: ${data.error}`);
+        } else if (data.response) {
+            addAIMessage(data.response);
+        } else {
+            addAIMessage('⚠️ Получен пустой ответ от AI');
+        }
+        
+    } catch (error) {
+        console.error('Error:', error);
+        addAIMessage(`❌ Ошибка соединения с сервером: ${error.message}`);
+    } finally {
+        document.getElementById('loadingIndicator').style.display = 'none';
+        isWaitingForResponse = false;
+        document.getElementById('sendButton').disabled = false;
+        document.getElementById('messageInput').disabled = false;
+        document.getElementById('messageInput').focus();
+    }
+}
+
+// Быстрый вопрос
+function quickQuestion(text) {
+    document.getElementById('messageInput').value = text;
+    sendMessage();
+}
+
+// Отправка по Enter
+document.getElementById('messageInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+
+// Фокус на поле ввода при загрузке
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('messageInput').focus();
+    
+    // Проверка статуса AI
+    fetch('/ai-status')
+        .then(response => response.json())
+        .then(data => {
+            const badge = document.getElementById('aiStatusBadge');
+            if (data.enabled) {
+                badge.innerHTML = '<i class="fas fa-circle text-success me-1" style="font-size: 8px;"></i> AI Активен';
+            } else {
+                badge.innerHTML = '<i class="fas fa-circle text-danger me-1" style="font-size: 8px;"></i> AI Недоступен';
+            }
+        })
+        .catch(error => {
+            console.error('Status check error:', error);
+        });
+});
+</script>
+{% endblock %}
